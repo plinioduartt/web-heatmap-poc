@@ -153,21 +153,45 @@ export class HeatMap implements IHeatMap {
     return JSON.parse(jsonStr)
   }
 
+  private heatMapBuffer = new Map<string, number>();
+
+  private increaseHeat(x: number, y: number): number {
+    const cellSize = 10; // precisão da célula
+    const cellX = Math.floor(x / cellSize);
+    const cellY = Math.floor(y / cellSize);
+    const key = `${cellX},${cellY}`;
+
+    const current = this.heatMapBuffer.get(key) || 0;
+    const updated = current + 1;
+
+    this.heatMapBuffer.set(key, updated);
+
+    return updated;
+  }
+
+  private getHeatColor(intensity: number): string {
+    if (intensity >= 20) return 'rgba(255, 0, 0, 0.4)'; // vermelho
+    if (intensity >= 10) return 'rgba(255, 165, 0, 0.3)'; // laranja
+    if (intensity >= 5) return 'rgba(255, 255, 0, 0.2)'; // amarelo
+    return 'rgba(0, 255, 0, 0.1)'; // verde
+  }
+
   private drawElement(props: TraceRegisterProps): void {
     const ctx = this.getCanvaCtx();
     const x = (props.x / 100) * document.documentElement.clientWidth;
     const y = (props.y / 100) * document.documentElement.scrollHeight;
 
-    const radius = 25;
+    const intensity = this.increaseHeat(x, y);
+    const color = this.getHeatColor(intensity);
+    const radius = 30;
 
     const gradient = ctx.createRadialGradient(x, y, 0, x, y, radius);
-    gradient.addColorStop(0, 'rgba(255, 0, 0, 0.1)');
-    gradient.addColorStop(1, 'rgba(255, 0, 0, 0)');
+    gradient.addColorStop(0, color); // centro forte
+    gradient.addColorStop(1, 'rgba(0, 0, 0, 0)'); // borda transparente
 
     ctx.fillStyle = gradient;
-
     ctx.beginPath();
-    ctx.arc(x, y, radius, 0, Math.PI * 2, false);
+    ctx.arc(x, y, radius, 0, Math.PI * 2);
     ctx.fill();
   }
 
