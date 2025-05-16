@@ -50,7 +50,7 @@ export default function Home() {
 ```
 
 # Results
-![alt text](image.png)
+![alt text](image-2.png)
 
 # Possibilities
 
