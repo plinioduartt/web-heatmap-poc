@@ -7,8 +7,8 @@ import { HeatMap } from "./libs/HeatMap";
 const heatmap = new HeatMap({
   timeInterval: 5000,
   maxIntensity: 10,
-  postEventsApi: 'http://localhost:3000/api/heatmap/events',
-  getEventsApi: 'http://localhost:3000/api/heatmap/events',
+  postEventsApi: 'http://localhost:4000/api/heatmap/events',
+  getEventsApi: 'http://localhost:4000/api/heatmap/events',
   apiKey: 'test'
 })
 
