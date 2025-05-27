@@ -20,6 +20,7 @@ export interface CompressedTraces {
   page: string
   isMobile: boolean
   events: string
+  originalEvents: TraceRegisterProps[]
 }
 
 interface IHeatMap {
@@ -138,19 +139,12 @@ export class HeatMap implements IHeatMap {
         page,
         site,
         isMobile: isMobile === 'true',
-        events: Buffer.from(JSON.stringify(group)).toString('base64')
+        events: Buffer.from(JSON.stringify(group)).toString('base64'),
+        originalEvents: group
       })
     }
 
     return compressedGroups
-  }
-
-  private decompress(item: string): TraceRegisterProps[] {
-    const decodedStr = atob(item)
-    const original = JSON.parse(decodedStr)
-    const bytes = new Uint8Array(original.data)
-    const jsonStr = new TextDecoder().decode(bytes)
-    return JSON.parse(jsonStr)
   }
 
   private heatMapBuffer = new Map<string, number>();
@@ -260,12 +254,11 @@ export class HeatMap implements IHeatMap {
     }
 
     const json = await response.json()
-    const data = json.data as Array<{ compressed_data: string }>
+    const data = json.data as Array<{ compressed_data: TraceRegisterProps[] }>
 
     for (const item of data) {
       try {
-        const traces = this.decompress(item.compressed_data)
-
+        const traces = item.compressed_data
         for (const trace of traces) {
           this.drawElement(trace)
         }

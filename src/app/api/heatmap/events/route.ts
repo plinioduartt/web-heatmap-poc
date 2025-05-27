@@ -3,51 +3,88 @@
 import { CompressedTraces } from '@/app/libs/HeatMap'
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse, type NextRequest } from "next/server"
+import path from 'node:path'
+import { Pool } from 'pg'
+import protobuf from 'protobufjs'
+
+const root = await protobuf.load(path.resolve(process.cwd(), 'public', 'trace.proto'))
 
 export const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_API_KEY!
 )
 
+const pool = new Pool({
+  connectionString: process.env.SUPABASE_DB_URL,
+})
+
 export const maxDuration = 60
 
 export async function POST(request: NextRequest) {
-  const apiKey = request.headers.get('api-key');
+  const TraceBatch = root.lookupType('TraceBatch')
 
+  const apiKey = request.headers.get('api-key')
   if (apiKey !== 'test') {
-    return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+    return NextResponse.json({ message: 'Unauthorized' }, { status: 401 })
   }
 
-  const body: CompressedTraces[] = await request.json();
+  const body: CompressedTraces[] = await request.json()
 
-  const records = body.map(item => ({
-    site: item.site,
-    path: item.page,
-    is_mobile: item.isMobile,
-    compressed_data: Buffer.from(item.events, 'base64'), // decodifica base64 para Buffer
-  }));
+  const client = await pool.connect()
+  try {
+    await client.query('BEGIN')
 
-  const { error } = await supabase
-    .from("events")
-    .insert(records);
+    await Promise.all(
+      body.map(async (item) => {
+        const payload = { events: item.originalEvents };
 
-  if (error) {
-    console.error(error);
-    return NextResponse.json({ message: '[POST /heatmap/events] Insert failed' }, { status: 500 });
+        const errMsg = TraceBatch.verify(payload);
+        if (errMsg) throw new Error(`Protobuf validation failed: ${errMsg}`);
+
+        const message = TraceBatch.create(payload)
+        const buffer = TraceBatch.encode(message).finish()
+
+        const recordsInJSON = body.flatMap(item => item.originalEvents)
+
+        await Promise.all([
+          client.query(
+            `
+              INSERT INTO events (site, path, is_mobile, compressed_data)
+              VALUES ($1, $2, $3, $4)
+            `,
+            [item.site, item.page, item.isMobile, buffer]
+          ),
+          client.query(
+            `
+              INSERT INTO events_json (site, path, is_mobile, data)
+              VALUES ($1, $2, $3, $4)
+            `,
+            [item.site, item.page, item.isMobile, JSON.stringify(recordsInJSON)]
+          )
+        ])
+      })
+    )
+
+    await client.query('COMMIT')
+    return NextResponse.json({ message: 'OK' }, { status: 201 })
+  } catch (err) {
+    await client.query('ROLLBACK')
+    console.error('[POST /heatmap/events]', err)
+    return NextResponse.json({ message: 'Insert failed' }, { status: 500 })
+  } finally {
+    client.release()
   }
-
-  return NextResponse.json({ message: 'OK' }, { status: 201 });
 }
 
 export async function GET(request: NextRequest) {
-  const site = request.nextUrl.searchParams.get("site");
-  const page = request.nextUrl.searchParams.get("page");
-  const isMobile = request.nextUrl.searchParams.get("isMobile");
-  const from = request.nextUrl.searchParams.get("from");
-  const to = request.nextUrl.searchParams.get("to");
+  const site = request.nextUrl.searchParams.get("site")
+  const page = request.nextUrl.searchParams.get("page")
+  const isMobile = request.nextUrl.searchParams.get("isMobile")
+  const from = request.nextUrl.searchParams.get("from")
+  const to = request.nextUrl.searchParams.get("to")
 
   if (!site || !page || !isMobile || !from || !to) {
-    return NextResponse.json({ status: 400, message: "Missing query parameters" });
+    return NextResponse.json({ status: 400, message: "Missing query parameters" })
   }
 
   const { data, error } = await supabase
@@ -57,21 +94,25 @@ export async function GET(request: NextRequest) {
     .eq("path", page)
     .eq("is_mobile", isMobile === "true")
     .gte("created_at", from)
-    .lte("created_at", to);
+    .lte("created_at", to)
 
   if (error) {
-    console.error(error);
-    return NextResponse.json({ status: 500, message: "Error while listing traces" });
+    console.error(error)
+    return NextResponse.json({ status: 500, message: "Error while listing traces" })
   }
 
   const responseData = data!.map(item => {
-    const hex = item.compressed_data.startsWith('\\x') ? item.compressed_data.slice(2) : item.compressed_data;
-    const buffer = Buffer.from(hex, 'hex');
-
-    const base64 = buffer.toString('base64');
+    const TraceBatch = root.lookupType("TraceBatch");
+    const message = TraceBatch.decode(Buffer.from(item.compressed_data.replace(/^\\x/, ''), 'hex'));
+    const object = TraceBatch.toObject(message, {
+      longs: String,
+      enums: String,
+      bytes: String,
+      defaults: true,
+    });
 
     return {
-      compressed_data: base64,
+      compressed_data: object.events,
     }
   })
 
@@ -79,64 +120,3 @@ export async function GET(request: NextRequest) {
     data: responseData,
   })
 }
-
-// const inflateRawAsync = promisify(inflateRaw);
-
-// export async function GET(request: NextRequest) {
-//   const site = request.nextUrl.searchParams.get("site");
-//   const page = request.nextUrl.searchParams.get("page");
-//   const isMobile = request.nextUrl.searchParams.get("isMobile");
-//   const from = request.nextUrl.searchParams.get("from");
-//   const to = request.nextUrl.searchParams.get("to");
-
-//   if (!site || !page || !isMobile || !from || !to) {
-//     return NextResponse.json({ status: 400, message: "Missing query parameters" });
-//   }
-
-//   const { data, error } = await supabase
-//     .from("events")
-//     .select("compressed_data")
-//     .eq("site", site)
-//     .eq("path", page)
-//     .eq("is_mobile", isMobile === "true")
-//     .gte("created_at", from)
-//     .lte("created_at", to);
-
-//   if (error) {
-//     console.error(error);
-//     return NextResponse.json({ status: 500, message: "Error while listing traces" });
-//   }
-
-//   async function* jsonBatchGenerator() {
-//     for (const item of data!) {
-//       // Se compressed_data for string base64
-//       const compressedBase64 = typeof item.compressed_data === 'string'
-//         ? item.compressed_data
-//         : item.compressed_data.toString('base64');
-
-//       const compressedBuffer = Buffer.from(compressedBase64, 'base64');
-
-//       // Inflate raw deflate (pako.deflateRaw)
-//       const decompressedBuffer = await inflateRawAsync(compressedBuffer);
-
-//       const jsonString = decompressedBuffer.toString('utf-8');
-
-//       const events = JSON.parse(jsonString);
-
-//       yield JSON.stringify(events) + "\n"; // NDJSON
-//     }
-//   }
-
-//   const readable = Readable.from(jsonBatchGenerator());
-//   const gzipStream = createGzip();
-//   const compressedStream = readable.pipe(gzipStream);
-
-//   return new Response(compressedStream as any, {
-//     status: 200,
-//     headers: {
-//       "Content-Type": "application/x-ndjson",
-//       "Content-Encoding": "gzip",
-//       "Cache-Control": "no-cache",
-//     },
-//   });
-// }

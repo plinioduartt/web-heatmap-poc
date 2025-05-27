@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+message TraceRegister {
+  string site = 1;
+  string page = 2;
+  bool isMobile = 3;
+  float originalX = 4;
+  float originalY = 5;
+  float x = 6;
+  float y = 7;
+  float clientWidth = 8;
+  float clientHeight = 9;
+  float scrollHeight = 10;
+}
+
+message TraceBatch {
+  repeated TraceRegister events = 1;
+}
