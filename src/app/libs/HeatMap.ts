@@ -34,8 +34,11 @@ export interface HeatMapOptions {
   timeInterval?: number
   /** Quantity of interactions of the maximum heat */
   maxIntensity?: number
+  /** API that will persist all the events */
   postEventsApi?: `${"https" | "http"}://${string}`,
+  /** API that will retrieve all the events */
   getEventsApi?: `${"https" | "http"}://${string}`,
+  /** API key to handle authorization */
   apiKey?: string
 }
 
@@ -52,16 +55,6 @@ export class HeatMap implements IHeatMap {
     this.options = args
     this.eventbus = new EventEmitter()
     this.subscribe()
-  }
-
-  subscribe() {
-    // this.eventbus.on('heatmap_draw', (trace: TraceRegisterProps) => {
-    //   this.drawElement(trace)
-    // })
-
-    this.eventbus.on('post_events', async (traces) => {
-      this.post(traces)
-    })
   }
 
   track(): void {
@@ -91,6 +84,16 @@ export class HeatMap implements IHeatMap {
   stop(): void {
     this.clear()
     window.removeEventListener('mousemove', this.handle, false)
+  }
+
+  private subscribe() {
+    // this.eventbus.on('heatmap_draw', (trace: TraceRegisterProps) => {
+    //   this.drawElement(trace)
+    // })
+
+    this.eventbus.on('post_events', async (traces) => {
+      this.post(traces)
+    })
   }
 
   private clearTraces() {
