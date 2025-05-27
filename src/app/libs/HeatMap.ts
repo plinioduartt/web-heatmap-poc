@@ -24,8 +24,8 @@ export interface GroupedTraces {
 }
 
 interface IHeatMap {
-  track(e: MouseEvent): void
-  stop(e: MouseEvent): void
+  track(): void
+  stop(): void
   report(props: { page: string, site: string }): Promise<void>
 }
 
