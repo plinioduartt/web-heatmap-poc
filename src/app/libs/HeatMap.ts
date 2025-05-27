@@ -15,7 +15,7 @@ export interface TraceRegisterProps {
   scrollHeight: number
 }
 
-export interface CompressedTraces {
+export interface GroupedTraces {
   site: string
   page: string
   isMobile: boolean
@@ -119,7 +119,7 @@ export class HeatMap implements IHeatMap {
     })
   }
 
-  private compress(traces: TraceRegisterProps[]): CompressedTraces[] {
+  private compress(traces: TraceRegisterProps[]): GroupedTraces[] {
     const grouped = new Map<string, TraceRegisterProps[]>()
 
     for (const trace of traces) {
@@ -130,7 +130,7 @@ export class HeatMap implements IHeatMap {
       grouped.get(key)!.push(trace)
     }
 
-    const compressedGroups: CompressedTraces[] = []
+    const compressedGroups: GroupedTraces[] = []
 
     for (const [key, group] of grouped.entries()) {
       const [page, site, isMobile] = key.split('||')

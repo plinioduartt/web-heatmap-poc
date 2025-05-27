@@ -1,6 +1,6 @@
 
 
-import { CompressedTraces } from '@/app/libs/HeatMap'
+import { GroupedTraces } from '@/app/libs/HeatMap'
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse, type NextRequest } from "next/server"
 import path from 'node:path'
@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ message: 'Unauthorized' }, { status: 401 })
   }
 
-  const body: CompressedTraces[] = await request.json()
+  const body: GroupedTraces[] = await request.json()
 
   const client = await pool.connect()
   try {
