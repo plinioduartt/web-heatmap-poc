@@ -35,9 +35,9 @@ export interface HeatMapOptions {
   /** Quantity of interactions of the maximum heat */
   maxIntensity?: number
   /** API that will persist all the events */
-  postEventsApi?: `${"https" | "http"}://${string}`,
+  postEventsAPI?: `${"https" | "http"}://${string}`,
   /** API that will retrieve all the events */
-  getEventsApi?: `${"https" | "http"}://${string}`,
+  getEventsAPI?: `${"https" | "http"}://${string}`,
   /** API key to handle authorization */
   apiKey?: string
 }
@@ -108,11 +108,11 @@ export class HeatMap implements IHeatMap {
 
   private async post(traces: TraceRegisterProps[]): Promise<void> {
     if (!traces.length) return
-    if (!this.options.postEventsApi) throw new Error('Invalid HeatMap property options.postEventsApi')
+    if (!this.options.postEventsAPI) throw new Error('Invalid HeatMap property options.postEventsApi')
     if (!this.options.apiKey) throw new Error('Invalid HeatMap property options.apiKey')
 
     // Envia os dados comprimidos
-    await fetch(this.options.postEventsApi, {
+    await fetch(this.options.postEventsAPI, {
       method: 'POST',
       headers: {
         'api-key': this.options.apiKey,
@@ -215,9 +215,7 @@ export class HeatMap implements IHeatMap {
   private handle(event: MouseEvent) {
     if (!this.currentPage || !this.site) return
 
-    /** Normalized and converted to bin */
     const x = (event.pageX / document.documentElement.clientWidth) * 100
-    /** Normalized and converted to bin */
     const y = (event.pageY / document.documentElement.scrollHeight) * 100
 
     const trace: TraceRegisterProps = {
@@ -238,7 +236,7 @@ export class HeatMap implements IHeatMap {
   }
 
   private async fetchTraces(page: string, site: string) {
-    const url = new URL(this.options.getEventsApi!)
+    const url = new URL(this.options.getEventsAPI!)
     url.searchParams.set('from', '2020-10-10')
     url.searchParams.set('to', '2025-10-10')
     url.searchParams.set('page', page)
