@@ -3,6 +3,7 @@ import Image from "next/image";
 import { useSearchParams } from "next/navigation";
 import { useEffect } from "react";
 import { HeatMap } from "./libs/HeatMap";
+import { CanvaComponent } from "./components/Canva";
 
 const heatmap = new HeatMap({
   timeInterval: 5000,
@@ -31,18 +32,7 @@ export default function Home() {
 
   return (
     <div style={{ position: 'relative', height: '100%' }}>
-      <canvas
-        id="heatmap"
-        style={{
-          position: "absolute",
-          top: 0,
-          left: 0,
-          width: "100%",
-          height: "100%",
-          pointerEvents: "none",
-          overflowX: "hidden",
-          zIndex: 9999,
-        }} />
+      <CanvaComponent />
 
       <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
         <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
