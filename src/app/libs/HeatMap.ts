@@ -111,34 +111,33 @@ export class HeatMap implements IHeatMap {
     if (!this.options.postEventsAPI) throw new Error('Invalid HeatMap property options.postEventsApi')
     if (!this.options.apiKey) throw new Error('Invalid HeatMap property options.apiKey')
 
-    // Envia os dados comprimidos
     await fetch(this.options.postEventsAPI, {
       method: 'POST',
       headers: {
         'api-key': this.options.apiKey,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify(this.compress(traces))
+      body: JSON.stringify(this.group(traces))
     })
   }
 
-  private compress(traces: TraceRegisterProps[]): GroupedTraces[] {
-    const grouped = new Map<string, TraceRegisterProps[]>()
+  private group(traces: TraceRegisterProps[]): GroupedTraces[] {
+    const mapper = new Map<string, TraceRegisterProps[]>()
 
     for (const trace of traces) {
       const key = `${trace.page}||${trace.site}||${trace.isMobile}`
-      if (!grouped.has(key)) {
-        grouped.set(key, [])
+      if (!mapper.has(key)) {
+        mapper.set(key, [])
       }
-      grouped.get(key)!.push(trace)
+      mapper.get(key)!.push(trace)
     }
 
-    const compressedGroups: GroupedTraces[] = []
+    const grouped: GroupedTraces[] = []
 
-    for (const [key, group] of grouped.entries()) {
+    for (const [key, group] of mapper.entries()) {
       const [page, site, isMobile] = key.split('||')
 
-      compressedGroups.push({
+      grouped.push({
         page,
         site,
         isMobile: isMobile === 'true',
@@ -147,7 +146,7 @@ export class HeatMap implements IHeatMap {
       })
     }
 
-    return compressedGroups
+    return grouped
   }
 
   private heatMapBuffer = new Map<string, number>();
